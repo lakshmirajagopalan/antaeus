@@ -8,9 +8,7 @@
 package io.pleo.antaeus.app
 
 import getPaymentProvider
-import io.pleo.antaeus.core.services.BillingService
-import io.pleo.antaeus.core.services.CustomerService
-import io.pleo.antaeus.core.services.InvoiceService
+import io.pleo.antaeus.core.services.*
 import io.pleo.antaeus.data.AntaeusDal
 import io.pleo.antaeus.data.CustomerTable
 import io.pleo.antaeus.data.InvoiceTable
@@ -55,8 +53,17 @@ fun main() {
     val invoiceService = InvoiceService(dal = dal)
     val customerService = CustomerService(dal = dal)
 
+    // Decorated Payment Provider with Log
+
+    // Using db to track payment progress for simplicity here
+    // The better option would be to use transactional queues for audit trails
+    val dbBackedProgressLog = DBBackedProgressLog(dal = dal)
+    val progressTrackingPaymentProvider = ProgressTrackingPaymentProvider(paymentProvider = paymentProvider, paymentProgressLog = dbBackedProgressLog)
+
     // This is _your_ billing service to be included where you see fit
-    val billingService = BillingService(paymentProvider = paymentProvider)
+    val billingService = BillingService(paymentProvider = progressTrackingPaymentProvider, invoiceService = invoiceService)
+
+    billingService.chargePendingInvoices()
 
     // Create REST web service
     AntaeusRest(

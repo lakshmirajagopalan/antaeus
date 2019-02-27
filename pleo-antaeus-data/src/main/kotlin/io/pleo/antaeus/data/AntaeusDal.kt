@@ -7,15 +7,8 @@
 
 package io.pleo.antaeus.data
 
-import io.pleo.antaeus.models.Currency
-import io.pleo.antaeus.models.Customer
-import io.pleo.antaeus.models.Invoice
-import io.pleo.antaeus.models.InvoiceStatus
-import io.pleo.antaeus.models.Money
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.select
-import org.jetbrains.exposed.sql.selectAll
+import io.pleo.antaeus.models.*
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 
 class AntaeusDal(private val db: Database) {
@@ -36,6 +29,27 @@ class AntaeusDal(private val db: Database) {
                 .selectAll()
                 .map { it.toInvoice() }
         }
+    }
+
+    /**
+     * Fetches pending invoices a page at a time to not flood the memory.
+     *
+     * TODO: Inorder to potentially parallelize/distribute the processing, move the pending to started in the same transaction as fetching.
+     */
+    fun fetchPendingInvoices(pageSize: Int = 10): Sequence<Invoice> {
+        return generateSequence(listOf<Invoice>()){previous  ->
+                    transaction(db) {
+                        InvoiceTable.select {
+                            InvoiceTable.status.eq(InvoiceStatus.PENDING.name) and
+                            InvoiceTable.id.greater(if(previous.isEmpty()) 0 else previous.last().id)
+                        }.orderBy(InvoiceTable.id)
+                         .limit(pageSize)
+                         .map { it.toInvoice() }
+                    }
+                }
+                .drop(1)
+                .takeWhile { it.isNotEmpty() }
+                .flatMap { it.asSequence() }
     }
 
     fun createInvoice(amount: Money, customer: Customer, status: InvoiceStatus = InvoiceStatus.PENDING): Invoice? {
@@ -80,4 +94,45 @@ class AntaeusDal(private val db: Database) {
 
         return fetchCustomer(id!!)
     }
+
+    /**
+     * Move the Invoice from Pending -> Started Payment.
+     */
+    fun insertStartedPayment(invoice: Invoice) {
+        transaction(db) {
+            moveStatus(invoice, InvoiceStatus.PENDING, InvoiceStatus.STARTED_PAYMENT)
+        }
+    }
+
+    /**
+     * Move the Invoice from Started Payment -> Failed Payment, also add the failure to the failure table.
+     */
+    fun insertFailedPayment(invoice: Invoice, reason: String) {
+        transaction (db) {
+            moveStatus(invoice, InvoiceStatus.STARTED_PAYMENT, InvoiceStatus.FAILED_PAYMENT)
+            FailedBillingTable.insert {
+                it[this.invoiceId] = invoice.id
+                it[this.reason] = reason
+            }
+        }
+    }
+
+    /**
+     * Move the invoice from Started Payment -> Paid.
+     */
+    fun insertCompletedPayment(invoice: Invoice) {
+        transaction (db) {
+            moveStatus(invoice, InvoiceStatus.STARTED_PAYMENT, InvoiceStatus.PAID)
+        }
+    }
+
+    private fun moveStatus(invoice: Invoice, from: InvoiceStatus, to: InvoiceStatus) {
+        val updated = InvoiceTable.update({
+            (InvoiceTable.id eq invoice.id) and (InvoiceTable.status eq from.toString())
+        }) { it[status] = to.toString() }
+
+        if(updated != 1)
+            throw IllegalStateException("No invoice id = ${invoice.id} and state = ${from} updated to ${to}")
+    }
+
 }
