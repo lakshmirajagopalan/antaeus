@@ -36,20 +36,34 @@ class AntaeusDal(private val db: Database) {
      *
      * TODO: Inorder to potentially parallelize/distribute the processing, move the pending to started in the same transaction as fetching.
      */
-    fun fetchPendingInvoices(pageSize: Int = 10): Sequence<Invoice> {
+    fun fetchPendingInvoices(batchSize: Int = 10): Sequence<Invoice> {
         return generateSequence(listOf<Invoice>()){previous  ->
                     transaction(db) {
                         InvoiceTable.select {
                             InvoiceTable.status.eq(InvoiceStatus.PENDING.name) and
                             InvoiceTable.id.greater(if(previous.isEmpty()) 0 else previous.last().id)
                         }.orderBy(InvoiceTable.id)
-                         .limit(pageSize)
+                         .limit(batchSize)
                          .map { it.toInvoice() }
                     }
                 }
                 .drop(1)
                 .takeWhile { it.isNotEmpty() }
                 .flatMap { it.asSequence() }
+    }
+
+    /**
+     * Fetches invoices by status a page at a time to not flood the memory.
+     */
+    fun fetchInvoicesByStatus(invoiceStatus: InvoiceStatus, pageNumber: Int, pageSize: Int = 10): List<Invoice> {
+        return transaction(db) {
+            InvoiceTable.select {
+                InvoiceTable.status.eq(invoiceStatus.name)
+            }
+            .orderBy(InvoiceTable.id)
+            .limit(pageSize,pageSize * (pageNumber - 1))
+            .map { it.toInvoice() }
+        }
     }
 
     fun createInvoice(amount: Money, customer: Customer, status: InvoiceStatus = InvoiceStatus.PENDING): Invoice? {
@@ -98,8 +112,8 @@ class AntaeusDal(private val db: Database) {
     /**
      * Move the Invoice from Pending -> Started Payment.
      */
-    fun insertStartedPayment(invoice: Invoice) {
-        transaction(db) {
+    fun insertStartedPayment(invoice: Invoice): Invoice? {
+        return transaction(db) {
             moveStatus(invoice, InvoiceStatus.PENDING, InvoiceStatus.STARTED_PAYMENT)
         }
     }
@@ -107,32 +121,56 @@ class AntaeusDal(private val db: Database) {
     /**
      * Move the Invoice from Started Payment -> Failed Payment, also add the failure to the failure table.
      */
-    fun insertFailedPayment(invoice: Invoice, reason: String) {
-        transaction (db) {
-            moveStatus(invoice, InvoiceStatus.STARTED_PAYMENT, InvoiceStatus.FAILED_PAYMENT)
+    fun insertFailedPayment(invoice: Invoice, reason: String): Invoice? {
+        return transaction (db) {
             FailedBillingTable.insert {
                 it[this.invoiceId] = invoice.id
                 it[this.reason] = reason
             }
+            moveStatus(invoice, InvoiceStatus.STARTED_PAYMENT, InvoiceStatus.FAILED_PAYMENT)
         }
     }
 
     /**
      * Move the invoice from Started Payment -> Paid.
      */
-    fun insertCompletedPayment(invoice: Invoice) {
-        transaction (db) {
+    fun insertCompletedPayment(invoice: Invoice): Invoice? {
+        return transaction (db) {
             moveStatus(invoice, InvoiceStatus.STARTED_PAYMENT, InvoiceStatus.PAID)
         }
     }
 
-    private fun moveStatus(invoice: Invoice, from: InvoiceStatus, to: InvoiceStatus) {
+    /**
+     * Move the invoice to Pending
+     */
+    fun forceRequeueForBilling(invoiceId: Int): Invoice? {
+        transaction(db) {
+            InvoiceTable.update({ InvoiceTable.id eq invoiceId }) {
+                it[status] = InvoiceStatus.PENDING.toString()
+            }
+        }
+        return fetchInvoice(invoiceId)
+    }
+
+
+    private fun moveStatus(invoice: Invoice, from: InvoiceStatus, to: InvoiceStatus): Invoice? {
         val updated = InvoiceTable.update({
             (InvoiceTable.id eq invoice.id) and (InvoiceTable.status eq from.toString())
         }) { it[status] = to.toString() }
 
         if(updated != 1)
             throw IllegalStateException("No invoice id = ${invoice.id} and state = ${from} updated to ${to}")
+
+        return fetchInvoice(invoice.id)
+    }
+
+    fun getFailedBilling(invoiceId: Int): FailedBilling? {
+        return transaction(db) {
+            FailedBillingTable
+                .select { FailedBillingTable.invoiceId.eq(invoiceId) }
+                .firstOrNull()
+                ?.toFailedBilling()
+        }
     }
 
 }

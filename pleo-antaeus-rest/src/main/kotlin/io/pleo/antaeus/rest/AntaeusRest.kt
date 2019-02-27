@@ -5,11 +5,11 @@
 package io.pleo.antaeus.rest
 
 import io.javalin.Javalin
-import io.javalin.apibuilder.ApiBuilder.get
-import io.javalin.apibuilder.ApiBuilder.path
+import io.javalin.apibuilder.ApiBuilder.*
 import io.pleo.antaeus.core.exceptions.EntityNotFoundException
 import io.pleo.antaeus.core.services.CustomerService
 import io.pleo.antaeus.core.services.InvoiceService
+import io.pleo.antaeus.models.InvoiceStatus
 import mu.KotlinLogging
 
 private val logger = KotlinLogging.logger {}
@@ -60,6 +60,35 @@ class AntaeusRest (
                        // URL: /rest/v1/invoices/{:id}
                        get(":id") {
                           it.json(invoiceService.fetch(it.pathParam("id").toInt()))
+                       }
+
+                       // URL: /rest/v1/invoices/{:id}/requeue
+                       post(":id/requeue") {
+                           it.json(invoiceService.requeueForBilling(it.pathParam("id").toInt()))
+                       }
+
+                       path("status") {
+                           // URL: /rest/v1/invoices/status/{:status}
+                           get(":status") {
+                               val invoiceStatuses = InvoiceStatus.values().map{ it.name }
+                               val statusStr = it.validatedPathParam("status")
+                                       .check({status -> invoiceStatuses.contains(status.toUpperCase())}, "status should be one of the InvoiceStatuses: ${invoiceStatuses.joinToString()}")
+                                       .getOrThrow().toUpperCase()
+                               val status = InvoiceStatus.valueOf(statusStr)
+                               val pageNumber = it.validatedQueryParam("page", "1")
+                                       .asInt()
+                                       .check({ page -> page > 0 }, "Page has to be a positive Int")
+                                       .getOrThrow()
+
+                               it.json(invoiceService.fetchByStatus(status, pageNumber))
+                           }
+                       }
+
+                       path("failed") {
+                           // URL: /rest/v1/invoices/failed/{:invoiceid}
+                           get(":invoiceid") {
+                               it.json(invoiceService.fetchFailedBilling(it.pathParam("invoiceid").toInt()))
+                           }
                        }
                    }
 
