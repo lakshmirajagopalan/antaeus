@@ -4,8 +4,12 @@
 
 package io.pleo.antaeus.rest
 
+import com.fasterxml.jackson.databind.Module
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.datatype.joda.JodaModule
 import io.javalin.Javalin
 import io.javalin.apibuilder.ApiBuilder.*
+import io.javalin.json.JavalinJackson
 import io.pleo.antaeus.core.exceptions.EntityNotFoundException
 import io.pleo.antaeus.core.services.CustomerService
 import io.pleo.antaeus.core.services.InvoiceService
@@ -27,6 +31,8 @@ class AntaeusRest (
     private val app = Javalin
         .create()
         .apply {
+            JavalinJackson.getObjectMapper().registerModule(JodaModule())
+
             // InvoiceNotFoundException: return 404 HTTP status code
             exception(EntityNotFoundException::class.java) { _, ctx ->
                 ctx.status(404)

@@ -2,6 +2,7 @@ package io.pleo.antaeus.core.services
 
 import io.pleo.antaeus.data.AntaeusDal
 import io.pleo.antaeus.models.Invoice
+import org.joda.time.DateTime
 
 /**
  * Transitions the status in DB and also inserts into failure in-case of failures.
@@ -13,8 +14,8 @@ class DBBackedProgressLog(private val dal: AntaeusDal) : PaymentProgressLog {
         dal.insertStartedPayment(invoice)
     }
 
-    override fun failedPayment(invoice: Invoice, reason: String) {
-        dal.insertFailedPayment(invoice, reason)
+    override fun failedPayment(invoice: Invoice, reason: String, message: String, timestamp: DateTime) {
+        dal.insertFailedPayment(invoice, reason, message, timestamp)
     }
 
     override fun completePayment(invoice: Invoice) {

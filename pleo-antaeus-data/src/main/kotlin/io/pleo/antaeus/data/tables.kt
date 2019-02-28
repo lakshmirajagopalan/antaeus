@@ -24,4 +24,6 @@ object FailedBillingTable : Table() {
     val id = integer("id").autoIncrement().primaryKey()
     val invoiceId = reference("invoice_id", InvoiceTable.id)
     val reason = text("reason")
+    val message = text("message")
+    val timestamp = datetime("timestamp")
 }

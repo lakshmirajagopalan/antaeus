@@ -26,5 +26,7 @@ fun ResultRow.toCustomer(): Customer = Customer(
 fun ResultRow.toFailedBilling(): FailedBilling = FailedBilling(
     id = this[FailedBillingTable.id],
     invoiceId = this[FailedBillingTable.invoiceId],
-    reason = this[FailedBillingTable.reason]
+    reason = this[FailedBillingTable.reason],
+    message = this[FailedBillingTable.message],
+    timestamp = this[FailedBillingTable.timestamp]
 )

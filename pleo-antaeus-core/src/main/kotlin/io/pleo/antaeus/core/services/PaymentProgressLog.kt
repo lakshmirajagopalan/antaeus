@@ -1,6 +1,7 @@
 package io.pleo.antaeus.core.services
 
 import io.pleo.antaeus.models.Invoice
+import org.joda.time.DateTime
 
 /**
  * Contract for an audit log.
@@ -10,6 +11,6 @@ import io.pleo.antaeus.models.Invoice
  */
 interface PaymentProgressLog {
     fun startedPayment(invoice: Invoice)
-    fun failedPayment(invoice: Invoice, reason: String)
+    fun failedPayment(invoice: Invoice, reason: String, message: String, timestamp: DateTime)
     fun completePayment(invoice: Invoice)
 }

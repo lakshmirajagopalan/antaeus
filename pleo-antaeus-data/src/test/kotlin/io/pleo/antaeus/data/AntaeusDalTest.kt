@@ -10,6 +10,7 @@ import org.jetbrains.exposed.sql.StdOutSqlLogger
 import org.jetbrains.exposed.sql.addLogger
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.joda.time.DateTime
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
@@ -91,7 +92,8 @@ class AntaeusDalTest {
     fun `will move invoice status to Failed on a Started and unsuccessful payment`() {
         val invoice = dal.createInvoice(money, customer, STARTED_PAYMENT)!!
 
-        val updatedInvoice = dal.insertFailedPayment(invoice, "Network error")!!
+        val now  = DateTime.now()
+        val updatedInvoice = dal.insertFailedPayment(invoice, "Network error", now)!!
 
         assertEquals(updatedInvoice, invoice.copy(status = FAILED_PAYMENT))
     }
@@ -101,12 +103,24 @@ class AntaeusDalTest {
         val invoice = dal.createInvoice(money, customer, STARTED_PAYMENT)!!
 
         val failureReason = "Network error"
-        dal.insertFailedPayment(invoice, failureReason)!!
-        val mayBeFailedBillingRecord = dal.getFailedBilling(invoice.id)
 
-        assertNotNull(mayBeFailedBillingRecord)
-        assertEquals(mayBeFailedBillingRecord?.invoiceId, invoice.id)
-        assertEquals(mayBeFailedBillingRecord?.reason, failureReason)
+        val now = DateTime.now()
+        val then = now.minusDays(2)
+
+        dal.insertFailedPayment(invoice, failureReason, now)!!
+        dal.insertFailedPayment(invoice, failureReason, then)!!
+        val failedBillingRecords = dal.getFailedBilling(invoice.id)
+
+        assertEquals(failedBillingRecords.count(), 2)
+        val latestFailedBilling = failedBillingRecords[0]
+        val previousFailedBilling = failedBillingRecords[1]
+
+        assertEquals(latestFailedBilling.invoiceId, invoice.id)
+        assertEquals(previousFailedBilling.invoiceId, invoice.id)
+        assertEquals(latestFailedBilling.reason, failureReason)
+        assertEquals(previousFailedBilling.reason, failureReason)
+        assertEquals(latestFailedBilling.timestamp, now)
+        assertEquals(previousFailedBilling.timestamp, then)
     }
 
     @Test

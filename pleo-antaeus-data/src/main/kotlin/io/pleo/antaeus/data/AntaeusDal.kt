@@ -10,6 +10,7 @@ package io.pleo.antaeus.data
 import io.pleo.antaeus.models.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.joda.time.DateTime
 
 class AntaeusDal(private val db: Database) {
     fun fetchInvoice(id: Int): Invoice? {
@@ -121,11 +122,13 @@ class AntaeusDal(private val db: Database) {
     /**
      * Move the Invoice from Started Payment -> Failed Payment, also add the failure to the failure table.
      */
-    fun insertFailedPayment(invoice: Invoice, reason: String): Invoice? {
+    fun insertFailedPayment(invoice: Invoice, reason: String, message: String, timestamp: DateTime): Invoice? {
         return transaction (db) {
             FailedBillingTable.insert {
                 it[this.invoiceId] = invoice.id
                 it[this.reason] = reason
+                it[this.message] = message
+                it[this.timestamp] = timestamp
             }
             moveStatus(invoice, InvoiceStatus.STARTED_PAYMENT, InvoiceStatus.FAILED_PAYMENT)
         }
@@ -164,12 +167,13 @@ class AntaeusDal(private val db: Database) {
         return fetchInvoice(invoice.id)
     }
 
-    fun getFailedBilling(invoiceId: Int): FailedBilling? {
+    fun getFailedBilling(invoiceId: Int): List<FailedBilling> {
         return transaction(db) {
             FailedBillingTable
                 .select { FailedBillingTable.invoiceId.eq(invoiceId) }
-                .firstOrNull()
-                ?.toFailedBilling()
+                    .orderBy(FailedBillingTable.timestamp)
+                    .map { it.toFailedBilling() }
+
         }
     }
 

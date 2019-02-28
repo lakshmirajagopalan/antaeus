@@ -31,7 +31,7 @@ class InvoiceService(private val dal: AntaeusDal) {
         return dal.forceRequeueForBilling(id) ?: throw InvoiceNotFoundException(id)
     }
 
-    fun fetchFailedBilling(invoiceId: Int): FailedBilling {
-        return dal.getFailedBilling(invoiceId) ?: throw InvoiceNotFoundException(invoiceId)
+    fun fetchFailedBilling(invoiceId: Int): List<FailedBilling> {
+        return dal.getFailedBilling(invoiceId)
     }
 }

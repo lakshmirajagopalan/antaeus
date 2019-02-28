@@ -6,6 +6,7 @@ import io.pleo.antaeus.core.exceptions.NetworkException
 import io.pleo.antaeus.core.external.PaymentProvider
 import io.pleo.antaeus.models.Invoice
 import mu.KotlinLogging
+import org.joda.time.DateTime
 import java.sql.SQLException
 
 /**
@@ -23,11 +24,11 @@ class ProgressTrackingPaymentProvider(private val paymentProvider: PaymentProvid
             if(chargedStatus)
                 paymentProgressLog.completePayment(invoice)
             else
-                paymentProgressLog.failedPayment(invoice, "Insufficient Balance")
+                paymentProgressLog.failedPayment(invoice, "Insufficient Balance", "Insufficient Balance", DateTime.now())
             return chargedStatus
         } catch (e: Exception) {
             val failureReason = failPaymentReason(e)
-            paymentProgressLog.failedPayment(invoice, "$failureReason ${e.message}")
+            paymentProgressLog.failedPayment(invoice, failureReason, e.message ?: "", DateTime.now())
             logger.error(e) { "Failed transaction while paying invoice id = ${invoice.id} reason = ${failureReason}"}
             return false
         }
@@ -38,7 +39,6 @@ class ProgressTrackingPaymentProvider(private val paymentProvider: PaymentProvid
     // Adding it as an internal function in order to not change existing code
     private fun failPaymentReason(e: Exception): String {
         return when (e) {
-            is SQLException -> "Sql Error"
             is NetworkException -> "Network Error"
             is CustomerNotFoundException -> "Unknown Customer"
             is CurrencyMismatchException -> "Currency Mismatch Error"
