@@ -52,14 +52,14 @@ class ProgressTrackingPaymentProviderTest {
 
         val mockedPaymentProgressLog = mockk<PaymentProgressLog> {
             every { startedPayment(pendingInvoice) } returns Unit
-            every { failedPayment(pendingInvoice, any()) } returns Unit
+            every { failedPayment(pendingInvoice, any(), any(), any()) } returns Unit
         }
 
         val progressTrackingPaymentProvider = ProgressTrackingPaymentProvider(mockedPaymentProvider, mockedPaymentProgressLog)
 
         assertFalse(progressTrackingPaymentProvider.charge(pendingInvoice))
         verify { mockedPaymentProgressLog.startedPayment(pendingInvoice) }
-        verify { mockedPaymentProgressLog.failedPayment(pendingInvoice, any()) }
+        verify { mockedPaymentProgressLog.failedPayment(pendingInvoice, any(), any(), any()) }
 
     }
 
@@ -72,14 +72,14 @@ class ProgressTrackingPaymentProviderTest {
 
         val mockedPaymentProgressLog = mockk<PaymentProgressLog> {
             every { startedPayment(pendingInvoice) } returns Unit
-            every { failedPayment(pendingInvoice, any()) } returns Unit
+            every { failedPayment(pendingInvoice, any(), any(), any()) } returns Unit
         }
 
         val progressTrackingPaymentProvider = ProgressTrackingPaymentProvider(mockedPaymentProvider, mockedPaymentProgressLog)
 
         assertFalse(progressTrackingPaymentProvider.charge(pendingInvoice))
         verify { mockedPaymentProgressLog.startedPayment(pendingInvoice) }
-        verify { mockedPaymentProgressLog.failedPayment(pendingInvoice, any()) }
+        verify { mockedPaymentProgressLog.failedPayment(pendingInvoice, any(), any(), any()) }
     }
 
     @Test
@@ -91,18 +91,18 @@ class ProgressTrackingPaymentProviderTest {
 
         val mockedPaymentProgressLog = mockk<PaymentProgressLog> {
             every { startedPayment(pendingInvoice) } returns Unit
-            every { failedPayment(pendingInvoice, any()) } returns Unit
+            every { failedPayment(pendingInvoice, any(), any(), any()) } returns Unit
         }
 
         val progressTrackingPaymentProvider = ProgressTrackingPaymentProvider(mockedPaymentProvider, mockedPaymentProgressLog)
 
         assertFalse(progressTrackingPaymentProvider.charge(pendingInvoice))
         verify { mockedPaymentProgressLog.startedPayment(pendingInvoice) }
-        verify { mockedPaymentProgressLog.failedPayment(pendingInvoice, any()) }
+        verify { mockedPaymentProgressLog.failedPayment(pendingInvoice, any(), any(), any()) }
     }
 
     @Test
-    fun `will fail a Pending invoice on Insufficient Balance on the customer side`() {
+    fun `will fail a Pending invoice on Insufficient Balance at the customer side`() {
 
         val mockedPaymentProvider = mockk<PaymentProvider> {
             every { charge(invoice = pendingInvoice) } returns false
@@ -110,14 +110,14 @@ class ProgressTrackingPaymentProviderTest {
 
         val mockedPaymentProgressLog = mockk<PaymentProgressLog> {
             every { startedPayment(pendingInvoice) } returns Unit
-            every { failedPayment(pendingInvoice, any()) } returns Unit
+            every { failedPayment(pendingInvoice, any(), any(), any()) } returns Unit
         }
 
         val progressTrackingPaymentProvider = ProgressTrackingPaymentProvider(mockedPaymentProvider, mockedPaymentProgressLog)
 
         assertFalse(progressTrackingPaymentProvider.charge(pendingInvoice))
         verify { mockedPaymentProgressLog.startedPayment(pendingInvoice) }
-        verify { mockedPaymentProgressLog.failedPayment(pendingInvoice, any()) }
+        verify { mockedPaymentProgressLog.failedPayment(pendingInvoice, any(), any(), any()) }
     }
 
 }

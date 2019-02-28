@@ -171,7 +171,7 @@ class AntaeusDal(private val db: Database) {
         return transaction(db) {
             FailedBillingTable
                 .select { FailedBillingTable.invoiceId.eq(invoiceId) }
-                    .orderBy(FailedBillingTable.timestamp)
+                    .orderBy(FailedBillingTable.timestamp, isAsc = false)
                     .map { it.toFailedBilling() }
 
         }

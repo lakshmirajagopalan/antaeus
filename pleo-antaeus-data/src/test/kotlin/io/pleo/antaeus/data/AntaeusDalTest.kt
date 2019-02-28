@@ -12,7 +12,6 @@ import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.joda.time.DateTime
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
@@ -93,7 +92,7 @@ class AntaeusDalTest {
         val invoice = dal.createInvoice(money, customer, STARTED_PAYMENT)!!
 
         val now  = DateTime.now()
-        val updatedInvoice = dal.insertFailedPayment(invoice, "Network error", now)!!
+        val updatedInvoice = dal.insertFailedPayment(invoice, "Network error", "Failure message", now)!!
 
         assertEquals(updatedInvoice, invoice.copy(status = FAILED_PAYMENT))
     }
@@ -103,12 +102,38 @@ class AntaeusDalTest {
         val invoice = dal.createInvoice(money, customer, STARTED_PAYMENT)!!
 
         val failureReason = "Network error"
+        val failureMessage = "Network error message"
 
         val now = DateTime.now()
-        val then = now.minusDays(2)
 
-        dal.insertFailedPayment(invoice, failureReason, now)!!
-        dal.insertFailedPayment(invoice, failureReason, then)!!
+        dal.insertFailedPayment(invoice, failureReason, failureMessage, now)!!
+        val failedBillingRecords = dal.getFailedBilling(invoice.id)
+
+        assertEquals(failedBillingRecords.count(), 1)
+        val failedBilling = failedBillingRecords[0]
+
+        assertEquals(failedBilling.invoiceId, invoice.id)
+        assertEquals(failedBilling.reason, failureReason)
+        assertEquals(failedBilling.timestamp, now)
+    }
+
+    @Test
+    fun `will get Failed Billing records for an invoice sorted by the latest`() {
+        val invoice = dal.createInvoice(money, customer, STARTED_PAYMENT)!!
+
+        val failureReason = "Network error"
+        val failureMessage = "Network error message"
+
+        val now = DateTime.now()
+        val then = DateTime.now().minusDays(2)
+
+        dal.insertFailedPayment(invoice, failureReason, failureMessage, then)!!
+
+        // Retry of a failed payment
+        dal.forceRequeueForBilling(invoice.id)
+        dal.insertStartedPayment(invoice)
+        dal.insertFailedPayment(invoice, failureReason, failureMessage, now)!!
+
         val failedBillingRecords = dal.getFailedBilling(invoice.id)
 
         assertEquals(failedBillingRecords.count(), 2)
@@ -116,10 +141,9 @@ class AntaeusDalTest {
         val previousFailedBilling = failedBillingRecords[1]
 
         assertEquals(latestFailedBilling.invoiceId, invoice.id)
-        assertEquals(previousFailedBilling.invoiceId, invoice.id)
-        assertEquals(latestFailedBilling.reason, failureReason)
-        assertEquals(previousFailedBilling.reason, failureReason)
         assertEquals(latestFailedBilling.timestamp, now)
+
+        assertEquals(previousFailedBilling.invoiceId, invoice.id)
         assertEquals(previousFailedBilling.timestamp, then)
     }
 
