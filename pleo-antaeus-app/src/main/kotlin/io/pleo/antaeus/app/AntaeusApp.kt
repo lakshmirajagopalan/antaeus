@@ -9,7 +9,6 @@ package io.pleo.antaeus.app
 
 import getPaymentProvider
 import io.pleo.antaeus.app.TimedScheduler.Companion.startOfEveryMonth
-import io.pleo.antaeus.app.TimedScheduler.Companion.startOfMinute
 import io.pleo.antaeus.core.services.*
 import io.pleo.antaeus.data.AntaeusDal
 import io.pleo.antaeus.data.CustomerTable
@@ -22,13 +21,8 @@ import org.jetbrains.exposed.sql.StdOutSqlLogger
 import org.jetbrains.exposed.sql.addLogger
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.joda.time.DateTime
 import setupInitialData
 import java.sql.Connection
-import java.sql.Time
-import java.time.Clock
-import java.time.Duration
-import java.util.*
 
 fun main() {
     // The tables to create in the database.
@@ -36,7 +30,7 @@ fun main() {
 
     // Connect to the database and create the needed tables. Drop any existing data.
     val db = Database
-        .connect("jdbc:sqlite:/tmp/data.db", "org.sqlite.JDBC")
+        .connect("jdbc:sqlite:/tmp/antaeus/data.db", "org.sqlite.JDBC")
         .also {
             TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
             transaction(it) {
@@ -81,7 +75,8 @@ fun main() {
     // Create REST web service
     AntaeusRest(
         invoiceService = invoiceService,
-        customerService = customerService
+        customerService = customerService,
+        billingService = billingService
     ).run()
 }
 

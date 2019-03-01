@@ -1,20 +1,26 @@
 package io.pleo.antaeus.app
 
+import mu.KotlinLogging
 import org.joda.time.DateTime
 import java.time.Clock
+import java.time.ZoneId
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 class TimedScheduler(private val clock: Clock = Clock.systemDefaultZone()) {
-    val scheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(1);
+    private val scheduler: ScheduledExecutorService = Executors.newScheduledThreadPool(1);
+    private val logger = KotlinLogging.logger {}
+
     fun schedule(times: Sequence<DateTime>, task: () -> Unit): Unit {
         val iterator = times.map { it.millis }.dropWhile { it < clock.millis() }.iterator()
         fun doSchedule() {
             if(iterator.hasNext()) {
                 scheduler.schedule({
                     doSchedule()
-                    println("Starting to execute task " + clock.millis())
+
+                    logger.info("Starting to execute task at ${clock.instant()} local ${clock.instant().atZone(ZoneId.of("IST"))}")
+
                     task()
                 }, iterator.next() - clock.millis(), TimeUnit.MILLISECONDS)
             }
