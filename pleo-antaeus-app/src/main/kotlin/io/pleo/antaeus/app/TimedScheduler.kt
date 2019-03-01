@@ -19,7 +19,7 @@ class TimedScheduler(private val clock: Clock = Clock.systemDefaultZone()) {
                 scheduler.schedule({
                     doSchedule()
 
-                    logger.info("Starting to execute task at ${clock.instant()} local ${clock.instant().atZone(ZoneId.of("IST"))}")
+                    logger.info("Starting to execute task at ${clock.instant()}")
 
                     task()
                 }, iterator.next() - clock.millis(), TimeUnit.MILLISECONDS)
