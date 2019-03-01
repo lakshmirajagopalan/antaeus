@@ -12,7 +12,7 @@ object InvoiceTable : Table() {
     val currency = varchar("currency", 3)
     val value = decimal("value", 1000, 2)
     val customerId = reference("customer_id", CustomerTable.id)
-    val status = text("status")
+    val status = text("status").index("idx_invoice_status")
 }
 
 object CustomerTable : Table() {
@@ -22,7 +22,7 @@ object CustomerTable : Table() {
 
 object FailedBillingTable : Table() {
     val id = integer("id").autoIncrement().primaryKey()
-    val invoiceId = reference("invoice_id", InvoiceTable.id)
+    val invoiceId = reference("invoice_id", InvoiceTable.id).index("idx_failed_billing_invoice_id")
     val reason = text("reason")
     val message = text("message")
     val timestamp = datetime("timestamp")

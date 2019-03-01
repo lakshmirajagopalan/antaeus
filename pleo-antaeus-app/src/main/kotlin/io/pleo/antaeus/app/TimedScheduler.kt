@@ -34,9 +34,5 @@ class TimedScheduler(private val clock: Clock = Clock.systemDefaultZone()) {
                 .plusMonths(1)
                 .withTimeAtStartOfDay()
         ) { current -> current.plusMonths(1) }
-
-        fun startOfMinute(clock: Clock = Clock.systemDefaultZone()) = generateSequence (
-            DateTime.now()
-        ) { current -> current.plusMinutes(1) }
     }
 }

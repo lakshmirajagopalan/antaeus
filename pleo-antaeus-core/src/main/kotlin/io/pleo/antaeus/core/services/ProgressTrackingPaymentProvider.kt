@@ -29,7 +29,7 @@ class ProgressTrackingPaymentProvider(private val paymentProvider: PaymentProvid
         } catch (e: Exception) {
             val failureReason = failPaymentReason(e)
             paymentProgressLog.failedPayment(invoice, failureReason, e.message ?: "", DateTime.now())
-            logger.error(e) { "Failed transaction while paying invoice id = ${invoice.id} reason = ${failureReason}"}
+            logger.warn(e) { "Failed transaction while paying invoice id = ${invoice.id} reason = ${failureReason}"}
             return false
         }
 
