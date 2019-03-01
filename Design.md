@@ -40,8 +40,8 @@ __7. Endpoints:__
 
 __Things considered but avoided due to time limitations__   
 
-1. Multi threaded payment calls (requires locks and synchronisation on the database).
-2. Asynchronous payment calls.
+1. Multi threaded payment calls. (requires locks and synchronisation on the database).
+2. Asynchronous payment calls. (lack of my knowledge on how it is accomplished in kotlin)
 3. Multiple instances of the application (requires locks and synchronisation).
 4. Automatic retries (every failure might require a different kind of intervention).
 Did not write tests for the already existing features in the challenge.
